@@ -17,6 +17,11 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_ALL_ORIGINS = True
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://online-chat-backend-o6op.onrender.com",
+    "https://online-chat-rakib.vercel.app/", 
+]
+
 # Application definition
 
 INSTALLED_APPS = [
