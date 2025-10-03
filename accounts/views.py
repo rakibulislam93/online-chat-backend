@@ -11,6 +11,8 @@ from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from . import serializers
 from . import models
+
+from chat.consumers import r,ONLINE_USERS_KEY
 # Create your views here.
 
 
@@ -143,6 +145,15 @@ class SetNewPasswordView(APIView):
 
 class AllUserListView(APIView):
     def get(self,request,format=None):
-        users = models.CustomUser.objects.exclude(id=request.user.id)
-        serializer = serializers.UserSerializer(users,many=True)
-        return Response(serializer.data,status=200)
+        users = models.CustomUser.objects.values("id","username")
+        online_ids = r.smembers(ONLINE_USERS_KEY)
+        online_ids = [ int(uid) for uid in online_ids]
+        user_list = []
+        for user in users:
+            user_list.append({
+                "id":user["id"],
+                "username":user["username"],
+                "is_online":user['id'] in online_ids
+            })
+        return Response(user_list,status=200)
+        

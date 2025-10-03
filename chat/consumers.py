@@ -11,19 +11,27 @@ import json
 from accounts.models import CustomUser
 from . import models
 from django.utils import timezone
+import redis
+from decouple import config
+
+r = redis.from_url(config("REDIS_URL"))
+ONLINE_USERS_KEY = 'online_users'
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope['user']
         if self.user.is_authenticated:
-            print('****************')
-            await self.set_user_online(self.user)
-        print(self.user.username)
+            print(self.user)
+            await self.set_user_online(self.user.id)
+            await self.update_last_active(self.user)
+            
+            
+        
         self.receiver_id = self.scope['url_route']['kwargs']['receiver_id']
         self.room = await self.get_or_create_room(self.user.id,self.receiver_id)
         self.room_group_name = f'chat_{self.room.id}'
         
-        print(self.receiver_id)
+        
         await self.channel_layer.group_add(self.room_group_name,self.channel_name)
         
         await self.accept()
@@ -31,7 +39,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
     async def disconnect(self, code):
         if self.user.is_authenticated:
-            await self.set_user_offline(self.user)
+            await self.set_user_offline(self.user.id)
+            await self.update_last_active(self.user)
+            
         await self.channel_layer.group_discard(self.room_group_name,self.channel_name)
 
     async def receive(self, text_data = None):
@@ -79,13 +89,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             "content":msg.content
         }
         
+    async def set_user_online(self,user_id):
+        r.sadd(ONLINE_USERS_KEY,user_id)
+        r.expire(ONLINE_USERS_KEY,60*5)
+    
+    async def set_user_offline(self,user_id):
+        r.srem(ONLINE_USERS_KEY,user_id)
+    
     @database_sync_to_async
-    def set_user_online(self, user):
-        user.is_online = True
-        user.save(update_fields=["is_online", "last_active"])
-
-    @database_sync_to_async
-    def set_user_offline(self, user):
-        user.is_online = False
+    def update_last_active(self,user):
         user.last_active = timezone.now()
-        user.save(update_fields=["is_online", "last_active"])
+        user.save(update_fields=["last_active"])

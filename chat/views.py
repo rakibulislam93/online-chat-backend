@@ -6,8 +6,17 @@ from . import models
 from accounts.models import CustomUser
 
 from rest_framework.permissions import IsAuthenticated
+from .consumers import r,ONLINE_USERS_KEY
 # Create your views here.
 
+
+
+# class OnlineUsersView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     def get(self,request):
+#         online_ids = r.smembers(ONLINE_USERS_KEY)
+#         online_ids = [int(uid) for uid in online_ids if int(uid)!=request.user.id]
+#         return Response({'online_users':online_ids})
 
 class GetMessage(APIView):
     def get(self,request,user1_id,user2_id):
